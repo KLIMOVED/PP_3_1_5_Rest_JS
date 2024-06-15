@@ -1,50 +1,59 @@
 package ru.kata.spring.boot_security.demo.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.kata.spring.boot_security.demo.dao.UserDao;
 import ru.kata.spring.boot_security.demo.models.User;
+import ru.kata.spring.boot_security.demo.repositories.UserRepository;
 
 import java.util.List;
 
 @Service
 public class UserServiceImp implements UserService {
 
-    private final UserDao userDao;
+    private final UserRepository userRepository;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @Autowired
-    public UserServiceImp(UserDao userDao) {
-        this.userDao = userDao;
+    public UserServiceImp(UserRepository userRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
+        this.userRepository = userRepository;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
     @Transactional
     @Override
     public void add(User user) {
-        userDao.add(user);
+        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
     }
 
     @Override
     @Transactional
     public void update(User user) {
-        userDao.update(user);
+        User existingUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!user.getPassword().equals(existingUser.getPassword())) {
+            user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+        }
+        userRepository.save(user);
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        userDao.delete(id);
+        userRepository.deleteById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
     public User findById(Long id) {
-        return userDao.findById(id);
+        return userRepository.findById(id).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<User> listUsers() {
-        return userDao.listUsers();
+        return userRepository.findAll();
     }
 }
